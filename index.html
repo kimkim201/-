@@ -264,6 +264,8 @@ main.view-wrap{flex:1;overflow-y:auto;padding:18px 16px 28px;}
 
 .helper-text{font-size:12px;color:var(--muted);font-weight:600;line-height:1.5;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -277,38 +279,141 @@ const ADMIN_CODE = '202602';
 const DEPARTMENTS = ['무용과','회화학과','미디어디자인학과','실용음악과','국악과','영화영상학과','문화콘텐츠학과','문화유산학과','연극학과','문화예술계열전공학부'];
 
 const LS_KEYS = {
-  PARTICIPANTS: 'sportsvote_participants_v1',
-  GAMES: 'sportsvote_games_v1',
-  ALLOWED_IDS: 'sportsvote_allowedIds_v1',
   CURRENT_PID: 'sportsvote_currentParticipantId_v1',
   ADMIN_SESSION: 'sportsvote_adminSession_v1'
 };
 
 /* =========================================================
-   데이터 저장소 계층 (DataStore)
-   - 지금은 localStorage 기반이지만, 추후 Firebase/Supabase로
-     교체할 때 이 객체의 내부 구현만 바꾸면 되도록 분리했다.
-   - 모든 함수는 Promise를 반환해 비동기 DB로 교체가 쉽도록 설계.
+   Firebase Realtime Database 설정
+   ---------------------------------------------------------
+   Firebase 콘솔 > 프로젝트 설정 > 내 앱 > SDK 설정 및 구성에서
+   아래 값을 본인 프로젝트 값으로 교체하세요.
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDBH-gTq9WrO6j9dbxeT69LV9zhMt4RfL4",
+  authDomain: "sports-vote-2026.firebaseapp.com",
+  databaseURL: "https://sports-vote-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sports-vote-2026",
+  storageBucket: "sports-vote-2026.firebasestorage.app",
+  messagingSenderId: "124226988182",
+  appId: "1:124226988182:web:0d74b6f07808f213eb3ab7"
+};
+
+let db = null;
+let cloudReady = false;
+
+// 화면 렌더링은 기존 구조를 최대한 유지하기 위해 동기 캐시를 사용한다.
+// 실제 원본 데이터는 Firebase Realtime Database에 저장된다.
+const cloudCache = {
+  participants: [],
+  games: [],
+  allowedIds: []
+};
+
+function firebaseConfigFilled(){
+  return firebaseConfig.apiKey &&
+         !firebaseConfig.apiKey.startsWith("PASTE_") &&
+         firebaseConfig.databaseURL &&
+         !firebaseConfig.databaseURL.startsWith("PASTE_");
+}
+
+function objectToArray(value){
+  if(!value) return [];
+  if(Array.isArray(value)) return value.filter(Boolean);
+  return Object.values(value).filter(Boolean);
+}
+
+function participantsToObject(list){
+  const out = {};
+  (list || []).forEach(p=>{
+    if(p && p.studentId) out[p.studentId] = p;
+  });
+  return out;
+}
+
+function gamesToObject(list){
+  const out = {};
+  (list || []).forEach(g=>{
+    if(g && g.id) out[g.id] = g;
+  });
+  return out;
+}
+
+async function initFirebase(){
+  if(!firebaseConfigFilled()){
+    throw new Error("FIREBASE_CONFIG_MISSING");
+  }
+
+  if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+
+  // 최초 데이터를 모두 받은 뒤 앱을 연다.
+  const [pSnap, gSnap, iSnap] = await Promise.all([
+    db.ref("participants").once("value"),
+    db.ref("games").once("value"),
+    db.ref("allowedIds").once("value")
+  ]);
+
+  cloudCache.participants = objectToArray(pSnap.val());
+  cloudCache.games = objectToArray(gSnap.val());
+  cloudCache.allowedIds = objectToArray(iSnap.val());
+
+  cloudReady = true;
+
+  // 이후 변경사항은 다른 기기에서도 실시간 반영된다.
+  db.ref("participants").on("value", snap=>{
+    cloudCache.participants = objectToArray(snap.val());
+
+    // 현재 로그인 참가자 정보도 최신 상태로 맞춘다.
+    if(state.currentParticipant){
+      const latest = cloudCache.participants.find(
+        p=>p.studentId === state.currentParticipant.studentId
+      );
+      if(latest) state.currentParticipant = latest;
+    }
+
+    if(state.screen === "participantApp" || state.screen === "adminApp"){
+      renderApp();
+    }
+  });
+
+  db.ref("games").on("value", snap=>{
+    cloudCache.games = objectToArray(snap.val());
+    if(state.screen === "participantApp" || state.screen === "adminApp"){
+      renderApp();
+    }
+  });
+
+  db.ref("allowedIds").on("value", snap=>{
+    cloudCache.allowedIds = objectToArray(snap.val());
+    if(state.screen === "adminApp" && state.adminTab === "ids"){
+      refreshAdminView();
+    }
+  });
+}
+
+/* =========================================================
+   데이터 저장소 계층 (Firebase 기반)
    ========================================================= */
 const DataStore = {
-  async getParticipants(){
-    return JSON.parse(localStorage.getItem(LS_KEYS.PARTICIPANTS) || '[]');
-  },
+  async getParticipants(){ return cloudCache.participants.slice(); },
   async setParticipants(list){
-    localStorage.setItem(LS_KEYS.PARTICIPANTS, JSON.stringify(list));
+    cloudCache.participants = (list || []).slice();
+    if(db) await db.ref("participants").set(participantsToObject(list));
   },
-  async getGames(){
-    return JSON.parse(localStorage.getItem(LS_KEYS.GAMES) || '[]');
-  },
+
+  async getGames(){ return cloudCache.games.slice(); },
   async setGames(list){
-    localStorage.setItem(LS_KEYS.GAMES, JSON.stringify(list));
+    cloudCache.games = (list || []).slice();
+    if(db) await db.ref("games").set(gamesToObject(list));
   },
-  async getAllowedIds(){
-    return JSON.parse(localStorage.getItem(LS_KEYS.ALLOWED_IDS) || '[]');
-  },
+
+  async getAllowedIds(){ return cloudCache.allowedIds.slice(); },
   async setAllowedIds(list){
-    localStorage.setItem(LS_KEYS.ALLOWED_IDS, JSON.stringify(list));
+    cloudCache.allowedIds = (list || []).slice();
+    if(db) await db.ref("allowedIds").set(list || []);
   },
+
   async getCurrentParticipantId(){
     return localStorage.getItem(LS_KEYS.CURRENT_PID) || null;
   },
@@ -316,6 +421,7 @@ const DataStore = {
     if(id) localStorage.setItem(LS_KEYS.CURRENT_PID, id);
     else localStorage.removeItem(LS_KEYS.CURRENT_PID);
   },
+
   async getAdminSession(){
     return sessionStorage.getItem(LS_KEYS.ADMIN_SESSION) === '1';
   },
@@ -326,15 +432,36 @@ const DataStore = {
 };
 
 /* =========================================================
-   동기 캐시(로컬 스토리지는 동기적이므로 렌더링 편의를 위해
-   간단한 동기 헬퍼도 함께 둔다 - DataStore와 동일한 소스 사용)
+   동기 캐시 헬퍼
+   - 읽기는 캐시에서 즉시
+   - 쓰기는 캐시를 먼저 갱신한 뒤 Firebase에 전송
    ========================================================= */
-function syncGetParticipants(){ return JSON.parse(localStorage.getItem(LS_KEYS.PARTICIPANTS) || '[]'); }
-function syncSetParticipants(list){ localStorage.setItem(LS_KEYS.PARTICIPANTS, JSON.stringify(list)); }
-function syncGetGames(){ return JSON.parse(localStorage.getItem(LS_KEYS.GAMES) || '[]'); }
-function syncSetGames(list){ localStorage.setItem(LS_KEYS.GAMES, JSON.stringify(list)); }
-function syncGetAllowedIds(){ return JSON.parse(localStorage.getItem(LS_KEYS.ALLOWED_IDS) || '[]'); }
-function syncSetAllowedIds(list){ localStorage.setItem(LS_KEYS.ALLOWED_IDS, JSON.stringify(list)); }
+function syncGetParticipants(){ return cloudCache.participants.slice(); }
+function syncSetParticipants(list){
+  cloudCache.participants = (list || []).slice();
+  if(db){
+    db.ref("participants").set(participantsToObject(list))
+      .catch(err=>{ console.error(err); showToast("참가자 데이터 저장에 실패했습니다.", "err"); });
+  }
+}
+
+function syncGetGames(){ return cloudCache.games.slice(); }
+function syncSetGames(list){
+  cloudCache.games = (list || []).slice();
+  if(db){
+    db.ref("games").set(gamesToObject(list))
+      .catch(err=>{ console.error(err); showToast("경기 데이터 저장에 실패했습니다.", "err"); });
+  }
+}
+
+function syncGetAllowedIds(){ return cloudCache.allowedIds.slice(); }
+function syncSetAllowedIds(list){
+  cloudCache.allowedIds = (list || []).slice();
+  if(db){
+    db.ref("allowedIds").set(list || [])
+      .catch(err=>{ console.error(err); showToast("학번 목록 저장에 실패했습니다.", "err"); });
+  }
+}
 
 /* =========================================================
    전역 상태
@@ -413,7 +540,13 @@ function upsertParticipant(p){
   const list = syncGetParticipants();
   const idx = list.findIndex(x=>x.studentId===p.studentId);
   if(idx>=0) list[idx]=p; else list.push(p);
-  syncSetParticipants(list);
+  cloudCache.participants = list;
+
+  // 참가자별 경로로 저장해서 여러 명이 동시에 투표해도 서로 덮어쓰지 않게 한다.
+  if(db){
+    db.ref('participants/' + p.studentId).set(p)
+      .catch(err=>{ console.error(err); showToast('투표/참가자 정보 저장에 실패했습니다.', 'err'); });
+  }
 }
 function computeCorrectCount(p){
   return Object.values(p.votes||{}).filter(v=>v.isCorrect===true).length;
@@ -437,7 +570,12 @@ function saveGame(g){
   const list = syncGetGames();
   const idx = list.findIndex(x=>x.id===g.id);
   if(idx>=0) list[idx]=g;
-  syncSetGames(list);
+  cloudCache.games = list;
+
+  if(db){
+    db.ref('games/' + g.id).set(g)
+      .catch(err=>{ console.error(err); showToast('경기 저장에 실패했습니다.', 'err'); });
+  }
 }
 function statusLabel(status){
   return status==='OPEN' ? '투표 가능' : status==='CLOSED' ? '투표 마감' : '경기 종료';
@@ -474,8 +612,12 @@ function finishGameAndRecalc(gameId, winnerDept){
 
 /* 경기 삭제: 관련 투표 데이터도 함께 제거 */
 function deleteGameCascade(gameId){
-  const games = syncGetGames().filter(g=>g.id!==gameId);
-  syncSetGames(games);
+  cloudCache.games = syncGetGames().filter(g=>g.id!==gameId);
+  if(db){
+    db.ref('games/' + gameId).remove()
+      .catch(err=>{ console.error(err); showToast('경기 삭제에 실패했습니다.', 'err'); });
+  }
+
   const participants = syncGetParticipants();
   participants.forEach(p=>{
     if(p.votes && p.votes[gameId]) delete p.votes[gameId];
@@ -1184,7 +1326,11 @@ function handleSubmitCreateGame(){
   };
   const games = syncGetGames();
   games.push(newGame);
-  syncSetGames(games);
+  cloudCache.games = games;
+  if(db){
+    db.ref('games/' + newGame.id).set(newGame)
+      .catch(err=>{ console.error(err); showToast('경기 등록에 실패했습니다.', 'err'); });
+  }
 
   state.newGameDraft = { name:'', type:'1v1', departments: [] };
   state.adminTab = 'manage';
@@ -1264,8 +1410,41 @@ function handleRemoveAllowedId(id){
 /* =========================================================
    초기화
    ========================================================= */
-function init(){
-  renderApp();
+async function init(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="center-screen">
+      <div style="font-size:38px;margin-bottom:12px;">☁️</div>
+      <h2 class="font-display" style="margin:0 0 8px;">데이터 연결 중...</h2>
+      <p class="helper-text">공용 경기 데이터를 불러오고 있습니다.</p>
+    </div>`;
+
+  try{
+    await initFirebase();
+    renderApp();
+  }catch(err){
+    console.error(err);
+    if(err && err.message === "FIREBASE_CONFIG_MISSING"){
+      app.innerHTML = `
+        <div class="center-screen">
+          <div style="font-size:38px;margin-bottom:12px;">⚙️</div>
+          <h2 class="font-display" style="margin:0 0 8px;">Firebase 설정이 필요합니다</h2>
+          <p class="helper-text" style="max-width:360px;">
+            index.html 안의 <strong>firebaseConfig</strong> 값을
+            Firebase 프로젝트에서 발급받은 값으로 교체해주세요.
+          </p>
+        </div>`;
+    }else{
+      app.innerHTML = `
+        <div class="center-screen">
+          <div style="font-size:38px;margin-bottom:12px;">⚠️</div>
+          <h2 class="font-display" style="margin:0 0 8px;">데이터베이스 연결 실패</h2>
+          <p class="helper-text" style="max-width:360px;">
+            인터넷 연결, Firebase databaseURL, Realtime Database 생성 여부와 규칙을 확인해주세요.
+          </p>
+        </div>`;
+    }
+  }
 }
 init();
 
