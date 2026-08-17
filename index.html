@@ -689,12 +689,12 @@ function renderParticipantLoginScreen(){
   const deptOptions = DEPARTMENTS.map(d=>`<option value="${escapeHtml(d)}" ${state.regDraft.department===d?'selected':''}>${escapeHtml(d)}</option>`).join('');
   return `
   <div class="top-bar participant">
-    <div class="brand"><span class="logo-dot"></span><span class="title">참가자 등록</span></div>
+    <div class="brand"><span class="logo-dot"></span><span class="title">참가자 등록 / 로그인</span></div>
     <button class="icon-btn" data-action="backToStart">뒤로</button>
   </div>
   <div class="px" style="padding-top:26px;flex:1;">
     <h2 class="font-display" style="font-size:21px;margin:0 0 4px;">정보를 입력해주세요</h2>
-    <p class="helper-text" style="margin-bottom:22px;">이미 등록된 학번이면 기존 정보로 바로 접속돼요.</p>
+    <p class="helper-text" style="margin-bottom:22px;">처음 참가할 때 정한 4자리 PIN으로 다시 로그인할 수 있어요.</p>
     <div class="stack">
       <div class="field">
         <label>이름</label>
@@ -709,7 +709,11 @@ function renderParticipantLoginScreen(){
       </div>
       <div class="field">
         <label>학번</label>
-        <input type="text" id="reg-studentid" placeholder="예: 20261234" inputmode="numeric" value="${escapeHtml(state.regDraft.studentId||'')}"/>
+        <input type="text" id="reg-studentid" placeholder="학번 입력" inputmode="numeric" value="${escapeHtml(state.regDraft.studentId||'')}"/>
+      </div>
+      <div class="field">
+        <label>4자리 PIN</label>
+        <input type="password" id="reg-pin" placeholder="숫자 4자리" inputmode="numeric" maxlength="4" autocomplete="off"/>
       </div>
       <div class="field-error">${escapeHtml(state.registerError)}</div>
       <button class="btn btn-primary btn-block" data-action="submitRegister">시작하기</button>
@@ -1092,18 +1096,6 @@ function goStart(){
   renderApp();
 }
 function goParticipant(){
-  const pid = localStorage.getItem(LS_KEYS.CURRENT_PID);
-  if(pid){
-    const p = findParticipantById(pid);
-    if(p){
-      state.currentParticipant = p;
-      state.pendingSelections = {};
-      state.screen = 'participantApp';
-      state.participantTab = 'games';
-      renderApp();
-      return;
-    }
-  }
   state.regDraft = { name:'', department:'', studentId:'' };
   state.registerError = '';
   state.screen = 'participantLogin';
@@ -1223,7 +1215,7 @@ document.addEventListener('keydown', function(e){
   if(e.key !== 'Enter') return;
   const id = e.target.id;
   if(id==='admin-code-input') handleSubmitAdminCode();
-  if(id==='reg-name' || id==='reg-studentid') handleSubmitRegister();
+  if(id==='reg-name' || id==='reg-studentid' || id==='reg-pin') handleSubmitRegister();
 });
 
 /* =========================================================
@@ -1243,16 +1235,26 @@ function handleSubmitAdminCode(){
   }
 }
 
-function handleSubmitRegister(){
+async function hashPin(pin){
+  const data = new TextEncoder().encode(pin);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(b=>b.toString(16).padStart(2,'0'))
+    .join('');
+}
+
+async function handleSubmitRegister(){
   const name = document.getElementById('reg-name').value.trim();
   const department = document.getElementById('reg-department').value;
   const studentId = document.getElementById('reg-studentid').value.trim();
+  const pin = document.getElementById('reg-pin').value.trim();
   state.regDraft = { name, department, studentId };
 
   if(!name){ state.registerError = '이름을 입력해주세요.'; renderApp(); return; }
   if(!department){ state.registerError = '학과를 선택해주세요.'; renderApp(); return; }
   if(!studentId){ state.registerError = '학번을 입력해주세요.'; renderApp(); return; }
   if(!/^[0-9]+$/.test(studentId)){ state.registerError = '학번은 숫자만 입력해주세요.'; renderApp(); return; }
+  if(!/^\d{4}$/.test(pin)){ state.registerError = 'PIN은 숫자 4자리로 입력해주세요.'; renderApp(); return; }
 
   const allowedIds = syncGetAllowedIds();
   if(allowedIds.length > 0 && !allowedIds.includes(studentId)){
@@ -1261,8 +1263,26 @@ function handleSubmitRegister(){
     return;
   }
 
+  const pinHash = await hashPin(pin);
   const existing = findParticipantById(studentId);
+
   if(existing){
+    // 새 PIN 기능 도입 이전에 만들어진 참가자는 본인 정보가 일치하면 최초 1회 PIN을 등록한다.
+    if(!existing.pinHash){
+      if(existing.name !== name || existing.department !== department){
+        state.registerError = '기존 참가자 정보와 이름 또는 학과가 일치하지 않습니다.';
+        renderApp();
+        return;
+      }
+      existing.pinHash = pinHash;
+      upsertParticipant(existing);
+      showToast('기존 계정에 PIN이 등록되었습니다.', 'ok');
+    } else if(existing.pinHash !== pinHash){
+      state.registerError = 'PIN이 일치하지 않습니다.';
+      renderApp();
+      return;
+    }
+
     state.currentParticipant = existing;
     localStorage.setItem(LS_KEYS.CURRENT_PID, studentId);
     state.pendingSelections = {};
@@ -1273,7 +1293,7 @@ function handleSubmitRegister(){
     return;
   }
 
-  const newP = { studentId, name, department, votes:{}, correctCount:0 };
+  const newP = { studentId, name, department, pinHash, votes:{}, correctCount:0 };
   upsertParticipant(newP);
   localStorage.setItem(LS_KEYS.CURRENT_PID, studentId);
   state.currentParticipant = newP;
@@ -1281,7 +1301,7 @@ function handleSubmitRegister(){
   state.screen = 'participantApp';
   state.participantTab = 'games';
   renderApp();
-  showToast('등록이 완료되었습니다. 환영해요!', 'ok');
+  showToast('등록이 완료되었습니다. PIN을 기억해주세요!', 'ok');
 }
 
 function handleSubmitVote(gameId){
