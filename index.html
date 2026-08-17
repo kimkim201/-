@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>체육대회 결과 예측 투표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F6FC;
+  --surface:#FFFFFF;
+  --ink:#161B33;
+  --ink-soft:#4C5578;
+  --muted:#8A93AD;
+  --border:#E4E9F5;
+  --primary:#2F6FED;
+  --primary-dark:#1E52C4;
+  --primary-soft:#E8F0FF;
+  --gold:#FFC93C;
+  --gold-dark:#D9A400;
+  --silver:#C6CEDD;
+  --bronze:#E8935B;
+  --success:#06B885;
+  --success-soft:#E1FAF1;
+  --danger:#F0554F;
+  --danger-soft:#FDECEB;
+  --admin:#161B33;
+  --admin-soft:#232B52;
+  --admin-accent:#FF6B57;
+  --radius-lg:20px;
+  --radius-md:14px;
+  --radius-sm:10px;
+  --shadow-sm:0 2px 8px rgba(22,27,51,0.06);
+  --shadow-md:0 8px 24px rgba(22,27,51,0.10);
+  --nav-h:64px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3,.font-display{font-family:'Space Grotesk',system-ui,sans-serif;}
+button{font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+.hidden{display:none !important;}
+#app{max-width:520px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative;display:flex;flex-direction:column;}
+@media(min-width:640px){
+  #app{max-width:640px;box-shadow:var(--shadow-md);min-height:100vh;}
+}
+.screen{display:none;flex-direction:column;min-height:100vh;}
+.screen.active{display:flex;}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:none;border-radius:14px;padding:15px 20px;font-size:15.5px;font-weight:700;
+  cursor:pointer;transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(47,111,237,0.28);}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-block{width:100%;}
+.btn-outline{background:#fff;color:var(--ink);border:1.5px solid var(--border);}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary);}
+.btn-ghost{background:transparent;color:var(--ink-soft);padding:10px 12px;font-weight:600;}
+.btn-danger{background:var(--danger-soft);color:var(--danger);}
+.btn-danger-solid{background:var(--danger);color:#fff;}
+.btn-success{background:var(--success);color:#fff;box-shadow:0 6px 16px rgba(6,184,133,0.25);}
+.btn-sm{padding:9px 14px;font-size:13.5px;border-radius:10px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+.btn-admin{background:var(--admin-accent);color:#fff;}
+
+/* ---------- Layout helpers ---------- */
+.px{padding-left:20px;padding-right:20px;}
+.stack{display:flex;flex-direction:column;gap:12px;}
+.center-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;}
+.field{display:flex;flex-direction:column;gap:7px;text-align:left;}
+.field label{font-size:13px;font-weight:700;color:var(--ink-soft);}
+.field input[type=text], .field input[type=password], .field select, .field textarea{
+  border:1.5px solid var(--border);border-radius:12px;padding:13px 14px;font-size:15.5px;
+  background:#fff;color:var(--ink);outline:none;transition:border-color .12s;
+}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--primary);}
+.field-error{font-size:12.5px;color:var(--danger);font-weight:600;min-height:16px;}
+
+/* ---------- Header ---------- */
+.top-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;position:sticky;top:0;z-index:20;
+}
+.top-bar.participant{background:linear-gradient(135deg,var(--primary) 0%, #4E8CFF 100%);color:#fff;}
+.top-bar.admin{background:var(--admin);color:#fff;}
+.top-bar .brand{display:flex;align-items:center;gap:10px;}
+.top-bar .brand .logo-dot{width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(255,201,60,0.25);}
+.top-bar .title{font-family:'Space Grotesk';font-weight:700;font-size:17px;letter-spacing:-0.2px;}
+.top-bar .subtitle{font-size:11.5px;opacity:.8;font-weight:600;}
+.top-bar .icon-btn{background:rgba(255,255,255,0.14);border:none;color:#fff;border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;}
+.top-bar .icon-btn:active{background:rgba(255,255,255,0.28);}
+
+/* ---------- Bottom Nav ---------- */
+.bottom-nav{
+  position:sticky;bottom:0;display:flex;background:#fff;border-top:1px solid var(--border);
+  padding:6px 8px calc(6px + env(safe-area-inset-bottom));z-index:20;
+}
+.bottom-nav button{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;padding:8px 4px;border-radius:12px;cursor:pointer;color:var(--muted);
+  font-size:11.5px;font-weight:700;
+}
+.bottom-nav button .nav-ic{font-size:19px;}
+.bottom-nav button.active{color:var(--primary);background:var(--primary-soft);}
+.admin-app .bottom-nav button.active{color:var(--admin-accent);background:#FFF0EE;}
+
+main.view-wrap{flex:1;overflow-y:auto;padding:18px 16px 28px;}
+
+/* ---------- Badges ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;padding:5px 11px;border-radius:999px;white-space:nowrap;}
+.badge-open{background:var(--primary-soft);color:var(--primary-dark);}
+.badge-closed{background:#EEF0F6;color:var(--ink-soft);}
+.badge-finished{background:var(--success-soft);color:var(--success);}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+/* ---------- Cards ---------- */
+.card{background:var(--surface);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-sm);border:1px solid var(--border);}
+.game-card{margin-bottom:14px;}
+.game-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px;}
+.game-card-head h3{margin:0;font-size:16.5px;font-weight:700;line-height:1.35;}
+.game-meta{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.game-meta .tag{background:var(--bg);padding:3px 9px;border-radius:8px;color:var(--ink-soft);}
+
+.choice-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.choice-grid.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.choice-chip{
+  border:1.6px solid var(--border);background:#fff;border-radius:12px;padding:12px 14px;
+  font-size:14.5px;font-weight:700;color:var(--ink-soft);cursor:pointer;text-align:center;
+  transition:all .12s ease;position:relative;
+}
+.choice-chip:active{transform:scale(0.98);}
+.choice-chip.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark);}
+.choice-chip.locked{cursor:default;}
+.choice-chip.result-win{border-color:var(--success);background:var(--success-soft);color:var(--success);}
+.choice-chip.result-mine-correct{border-color:var(--success);background:var(--success-soft);color:var(--success);}
+.choice-chip.result-mine-wrong{border-color:var(--danger);background:var(--danger-soft);color:var(--danger);}
+
+.vote-note{font-size:13px;font-weight:700;padding:10px 12px;border-radius:10px;display:flex;align-items:center;gap:7px;}
+.vote-note.ok{background:var(--success-soft);color:var(--success);}
+.vote-note.info{background:var(--bg);color:var(--ink-soft);}
+.vote-note.result-correct{background:var(--success-soft);color:var(--success);}
+.vote-note.result-wrong{background:var(--danger-soft);color:var(--danger);}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .emoji{font-size:38px;margin-bottom:10px;}
+.empty-state p{font-weight:600;font-size:14.5px;margin:0;}
+
+/* ---------- Leaderboard ---------- */
+.podium{display:flex;align-items:flex-end;gap:8px;margin-bottom:22px;padding:0 4px;}
+.podium-item{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+.podium-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:8px;font-family:'Space Grotesk';font-weight:700;color:#fff;}
+.podium-name{font-size:13px;font-weight:800;text-align:center;margin-bottom:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.podium-dept{font-size:10.5px;color:var(--muted);font-weight:600;margin-bottom:8px;text-align:center;}
+.podium-bar{width:100%;border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10px;color:#fff;font-family:'Space Grotesk';box-shadow:var(--shadow-sm);}
+.podium-bar .rank-num{font-size:22px;font-weight:700;}
+.podium-bar .rank-score{font-size:11px;font-weight:700;opacity:.9;margin-top:2px;}
+.podium-1 .podium-bar{background:linear-gradient(180deg,#FFD866,var(--gold-dark));height:104px;}
+.podium-2 .podium-bar{background:linear-gradient(180deg,#DDE3EF,var(--silver));height:78px;}
+.podium-3 .podium-bar{background:linear-gradient(180deg,#F2A97C,var(--bronze));height:62px;}
+.podium-1 .podium-avatar{background:var(--gold-dark);}
+.podium-2 .podium-avatar{background:#9AA4BC;}
+.podium-3 .podium-avatar{background:var(--bronze);}
+
+.rank-row{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.rank-row:active{background:var(--bg);}
+.rank-num-badge{width:30px;height:30px;border-radius:50%;background:var(--bg);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
+.rank-info{flex:1;min-width:0;}
+.rank-info .rname{font-weight:700;font-size:14.5px;}
+.rank-info .rdept{font-size:12px;color:var(--muted);font-weight:600;}
+.rank-score-pill{background:var(--primary-soft);color:var(--primary-dark);font-weight:800;font-size:13px;padding:6px 11px;border-radius:999px;white-space:nowrap;}
+
+/* ---------- Stat cards (admin) ---------- */
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center;}
+.stat-card .num{font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--admin);}
+.stat-card .lbl{font-size:11px;color:var(--muted);font-weight:700;margin-top:2px;}
+
+/* ---------- Section heading ---------- */
+.section-title{font-family:'Space Grotesk';font-size:19px;font-weight:700;margin:2px 0 14px;display:flex;align-items:center;gap:8px;}
+
+/* ---------- Modal ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(22,27,51,0.5);display:flex;align-items:flex-end;justify-content:center;z-index:100;backdrop-filter:blur(2px);}
+@media(min-width:640px){.modal-overlay{align-items:center;}}
+.modal-box{background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;padding:22px 20px calc(22px + env(safe-area-inset-bottom));animation:slideUp .22s ease;}
+@media(min-width:640px){.modal-box{border-radius:22px;max-width:460px;}}
+@keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal-box h3{margin:0 0 6px;font-family:'Space Grotesk';font-size:18px;}
+.modal-box .modal-sub{color:var(--muted);font-size:13.5px;font-weight:600;margin-bottom:16px;}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.modal-actions .btn{flex:1;}
+.modal-close-x{position:absolute;top:14px;right:16px;background:var(--bg);border:none;width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;color:var(--ink-soft);}
+
+/* ---------- Toast ---------- */
+#toast-root{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;width:calc(100% - 32px);max-width:480px;pointer-events:none;}
+.toast{background:var(--ink);color:#fff;padding:13px 16px;border-radius:13px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:8px;animation:toastIn .18s ease;}
+.toast.ok{background:#0E9A70;}
+.toast.err{background:var(--danger);}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- Start screen ---------- */
+.start-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 26px;position:relative;overflow:hidden;background:radial-gradient(circle at 30% 20%,#4E8CFF 0%, var(--primary) 45%, var(--admin) 100%);color:#fff;text-align:center;}
+.start-hero .eyebrow{font-size:12.5px;font-weight:800;letter-spacing:2px;opacity:.85;margin-bottom:10px;}
+.start-hero h1{font-size:32px;line-height:1.25;margin:0 0 10px;font-weight:700;}
+.start-hero p.desc{opacity:.9;font-size:14px;font-weight:500;margin:0 0 34px;max-width:280px;}
+.start-hero .deco-ring{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,0.15);}
+.start-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;}
+.start-mode-btn{
+  background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.35);color:#fff;
+  border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-align:left;
+  cursor:pointer;transition:background .15s;
+}
+.start-mode-btn:active{background:rgba(255,255,255,0.24);}
+.start-mode-btn .ic{font-size:24px;}
+.start-mode-btn .txt strong{display:block;font-size:15.5px;font-weight:700;}
+.start-mode-btn .txt span{display:block;font-size:12px;opacity:.8;font-weight:500;}
+.start-mode-btn.primary-mode{background:#fff;color:var(--primary-dark);border-color:#fff;}
+
+/* ---------- Detail table ---------- */
+.detail-game-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:10px;}
+.detail-game-row:last-child{border-bottom:none;}
+.detail-game-row .dgname{font-weight:700;font-size:13.5px;flex:1;min-width:0;}
+.detail-game-row .dgsub{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;}
+.result-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:800;}
+.result-icon.correct{background:var(--success-soft);color:var(--success);}
+.result-icon.wrong{background:var(--danger-soft);color:var(--danger);}
+.result-icon.pending{background:var(--bg);color:var(--muted);}
+
+/* ---------- Admin create form ---------- */
+.type-toggle{display:flex;gap:8px;}
+.type-toggle button{flex:1;padding:13px;border-radius:12px;border:1.6px solid var(--border);background:#fff;font-weight:700;font-size:14px;color:var(--ink-soft);cursor:pointer;}
+.type-toggle button.active{border-color:var(--admin-accent);background:#FFF0EE;color:var(--admin-accent);}
+.dept-check-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.dept-check{border:1.6px solid var(--border);border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:700;cursor:pointer;color:var(--ink-soft);display:flex;align-items:center;gap:8px;}
+.dept-check.checked{border-color:var(--admin-accent);background:#FFF0EE;color:var(--admin-accent);}
+.dept-check input{display:none;}
+
+/* ---------- Admin manage list ---------- */
+.admin-game-row{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
+.admin-game-row .agr-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px;}
+.admin-game-row h4{margin:0;font-size:15.5px;font-weight:700;}
+.admin-game-row .agr-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.winner-select{border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600;flex:1;min-width:120px;}
+
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;}
+.mini-tag{background:var(--bg);color:var(--ink-soft);font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:8px;}
+
+.id-tag{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border-radius:10px;padding:7px 8px 7px 12px;font-size:13px;font-weight:700;margin:0 6px 6px 0;}
+.id-tag button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;}
+.id-tag-wrap{display:flex;flex-wrap:wrap;margin-top:12px;max-height:220px;overflow-y:auto;padding:2px;}
+
+.helper-text{font-size:12px;color:var(--muted);font-weight:600;line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast-root"></div>
+<div id="modal-root"></div>
+<script>
+/* =========================================================
+   상수 정의
+   ========================================================= */
+const ADMIN_CODE = '202602';
+const DEPARTMENTS = ['무용과','회화학과','미디어디자인학과','실용음악과','국악과','영화영상학과','문화콘텐츠학과','문화유산학과','연극학과','문화예술계열전공학부'];
+
+const LS_KEYS = {
+  PARTICIPANTS: 'sportsvote_participants_v1',
+  GAMES: 'sportsvote_games_v1',
+  ALLOWED_IDS: 'sportsvote_allowedIds_v1',
+  CURRENT_PID: 'sportsvote_currentParticipantId_v1',
+  ADMIN_SESSION: 'sportsvote_adminSession_v1'
+};
+
+/* =========================================================
+   데이터 저장소 계층 (DataStore)
+   - 지금은 localStorage 기반이지만, 추후 Firebase/Supabase로
+     교체할 때 이 객체의 내부 구현만 바꾸면 되도록 분리했다.
+   - 모든 함수는 Promise를 반환해 비동기 DB로 교체가 쉽도록 설계.
+   ========================================================= */
+const DataStore = {
+  async getParticipants(){
+    return JSON.parse(localStorage.getItem(LS_KEYS.PARTICIPANTS) || '[]');
+  },
+  async setParticipants(list){
+    localStorage.setItem(LS_KEYS.PARTICIPANTS, JSON.stringify(list));
+  },
+  async getGames(){
+    return JSON.parse(localStorage.getItem(LS_KEYS.GAMES) || '[]');
+  },
+  async setGames(list){
+    localStorage.setItem(LS_KEYS.GAMES, JSON.stringify(list));
+  },
+  async getAllowedIds(){
+    return JSON.parse(localStorage.getItem(LS_KEYS.ALLOWED_IDS) || '[]');
+  },
+  async setAllowedIds(list){
+    localStorage.setItem(LS_KEYS.ALLOWED_IDS, JSON.stringify(list));
+  },
+  async getCurrentParticipantId(){
+    return localStorage.getItem(LS_KEYS.CURRENT_PID) || null;
+  },
+  async setCurrentParticipantId(id){
+    if(id) localStorage.setItem(LS_KEYS.CURRENT_PID, id);
+    else localStorage.removeItem(LS_KEYS.CURRENT_PID);
+  },
+  async getAdminSession(){
+    return sessionStorage.getItem(LS_KEYS.ADMIN_SESSION) === '1';
+  },
+  async setAdminSession(v){
+    if(v) sessionStorage.setItem(LS_KEYS.ADMIN_SESSION,'1');
+    else sessionStorage.removeItem(LS_KEYS.ADMIN_SESSION);
+  }
+};
+
+/* =========================================================
+   동기 캐시(로컬 스토리지는 동기적이므로 렌더링 편의를 위해
+   간단한 동기 헬퍼도 함께 둔다 - DataStore와 동일한 소스 사용)
+   ========================================================= */
+function syncGetParticipants(){ return JSON.parse(localStorage.getItem(LS_KEYS.PARTICIPANTS) || '[]'); }
+function syncSetParticipants(list){ localStorage.setItem(LS_KEYS.PARTICIPANTS, JSON.stringify(list)); }
+function syncGetGames(){ return JSON.parse(localStorage.getItem(LS_KEYS.GAMES) || '[]'); }
+function syncSetGames(list){ localStorage.setItem(LS_KEYS.GAMES, JSON.stringify(list)); }
+function syncGetAllowedIds(){ return JSON.parse(localStorage.getItem(LS_KEYS.ALLOWED_IDS) || '[]'); }
+function syncSetAllowedIds(list){ localStorage.setItem(LS_KEYS.ALLOWED_IDS, JSON.stringify(list)); }
+
+/* =========================================================
+   전역 상태
+   ========================================================= */
+const state = {
+  screen: 'start',            // start | adminLogin | participantLogin | participantApp | adminApp
+  participantTab: 'games',    // games | leaderboard
+  adminTab: 'create',         // create | manage | leaderboard | ids
+  currentParticipant: null,   // 현재 로그인된 참가자 객체(캐시)
+  newGameDraft: { name:'', type:'1v1', departments: [] },
+  regDraft: { name:'', department:'' },
+  registerError: '',
+  adminLoginError: '',
+  detailParticipantId: null,  // 상세보기 모달 대상
+  confirmModal: null,         // {title, sub, confirmLabel, danger, onConfirm}
+  pendingSelections: {}       // 참가자가 아직 저장하지 않은 임시 투표 선택 {gameId: dept}
+};
+
+function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* =========================================================
+   토스트
+   ========================================================= */
+function showToast(msg, type){
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' '+type : '');
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .25s'; el.style.opacity='0'; setTimeout(()=>el.remove(),250); }, 2200);
+}
+
+/* =========================================================
+   확인 모달 / 상세 모달
+   ========================================================= */
+function openConfirm({title, sub, confirmLabel='확인', danger=false, onConfirm}){
+  state.confirmModal = {title, sub, confirmLabel, danger, onConfirm};
+  renderModals();
+}
+function closeConfirm(){ state.confirmModal = null; renderModals(); }
+
+function renderModals(){
+  const root = document.getElementById('modal-root');
+  let html = '';
+  if(state.confirmModal){
+    const m = state.confirmModal;
+    html += `
+    <div class="modal-overlay" data-action="closeConfirm">
+      <div class="modal-box">
+        <h3>${escapeHtml(m.title)}</h3>
+        <div class="modal-sub">${escapeHtml(m.sub||'')}</div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" data-action="closeConfirm">취소</button>
+          <button class="btn ${m.danger?'btn-danger-solid':'btn-primary'}" data-action="confirmYes">${escapeHtml(m.confirmLabel)}</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(state.detailParticipantId){
+    html += renderParticipantDetailModal(state.detailParticipantId);
+  }
+  root.innerHTML = html;
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =========================================================
+   참가자 관련
+   ========================================================= */
+function findParticipantById(studentId){
+  return syncGetParticipants().find(p=>p.studentId===studentId) || null;
+}
+function upsertParticipant(p){
+  const list = syncGetParticipants();
+  const idx = list.findIndex(x=>x.studentId===p.studentId);
+  if(idx>=0) list[idx]=p; else list.push(p);
+  syncSetParticipants(list);
+}
+function computeCorrectCount(p){
+  return Object.values(p.votes||{}).filter(v=>v.isCorrect===true).length;
+}
+function computeLeaderboard(){
+  const participants = syncGetParticipants().map(p=>({...p, correct: computeCorrectCount(p)}));
+  participants.sort((a,b)=> b.correct - a.correct || a.name.localeCompare(b.name,'ko'));
+  let rank = 0, prevCorrect = null;
+  participants.forEach((p,i)=>{
+    if(p.correct !== prevCorrect){ rank = i+1; prevCorrect = p.correct; }
+    p.rank = rank;
+  });
+  return participants;
+}
+
+/* =========================================================
+   경기 관련
+   ========================================================= */
+function getGameById(id){ return syncGetGames().find(g=>g.id===id) || null; }
+function saveGame(g){
+  const list = syncGetGames();
+  const idx = list.findIndex(x=>x.id===g.id);
+  if(idx>=0) list[idx]=g;
+  syncSetGames(list);
+}
+function statusLabel(status){
+  return status==='OPEN' ? '투표 가능' : status==='CLOSED' ? '투표 마감' : '경기 종료';
+}
+function statusBadgeClass(status){
+  return status==='OPEN' ? 'badge-open' : status==='CLOSED' ? 'badge-closed' : 'badge-finished';
+}
+
+/* 투표 저장 (신규/수정 공용) */
+function castVote(participant, game, selectedDept){
+  if(!participant.votes) participant.votes = {};
+  participant.votes[game.id] = { selected: selectedDept, isCorrect: game.status==='FINISHED' ? (selectedDept===game.winner) : null };
+  upsertParticipant(participant);
+}
+
+/* 경기 종료 처리: 우승 학과 지정 후 전체 참가자 적중 여부 재계산 */
+function finishGameAndRecalc(gameId, winnerDept){
+  const games = syncGetGames();
+  const g = games.find(x=>x.id===gameId);
+  if(!g) return;
+  g.status = 'FINISHED';
+  g.winner = winnerDept;
+  syncSetGames(games);
+
+  const participants = syncGetParticipants();
+  participants.forEach(p=>{
+    if(p.votes && p.votes[gameId]){
+      p.votes[gameId].isCorrect = (p.votes[gameId].selected === winnerDept);
+    }
+    p.correctCount = computeCorrectCount(p);
+  });
+  syncSetParticipants(participants);
+}
+
+/* 경기 삭제: 관련 투표 데이터도 함께 제거 */
+function deleteGameCascade(gameId){
+  const games = syncGetGames().filter(g=>g.id!==gameId);
+  syncSetGames(games);
+  const participants = syncGetParticipants();
+  participants.forEach(p=>{
+    if(p.votes && p.votes[gameId]) delete p.votes[gameId];
+    p.correctCount = computeCorrectCount(p);
+  });
+  syncSetParticipants(participants);
+}
+
+/* =========================================================
+   최상위 렌더러
+   ========================================================= */
+function renderApp(){
+  const app = document.getElementById('app');
+  let html = '';
+  switch(state.screen){
+    case 'start': html = renderStartScreen(); break;
+    case 'adminLogin': html = renderAdminLoginScreen(); break;
+    case 'participantLogin': html = renderParticipantLoginScreen(); break;
+    case 'participantApp': html = renderParticipantApp(); break;
+    case 'adminApp': html = renderAdminApp(); break;
+  }
+  app.innerHTML = html;
+  renderModals();
+}
+
+/* ---------- 시작 화면 ---------- */
+function renderStartScreen(){
+  return `
+  <div class="start-hero">
+    <div class="deco-ring" style="width:240px;height:240px;top:-60px;right:-70px;"></div>
+    <div class="deco-ring" style="width:160px;height:160px;bottom:10%;left:-50px;"></div>
+    <div class="eyebrow">2026 UNIVERSITY SPORTS FESTIVAL</div>
+    <h1>체육대회<br/>결과 예측 투표</h1>
+    <p class="desc">우리 과의 우승을 예측하고, 실시간 리더보드에서 순위를 확인해보세요.</p>
+    <div class="start-buttons">
+      <button class="start-mode-btn primary-mode" data-action="goParticipant">
+        <span class="ic">🙋</span>
+        <span class="txt"><strong>참가자 모드</strong><span>예측 투표 참여하기</span></span>
+      </button>
+      <button class="start-mode-btn" data-action="goAdminLogin">
+        <span class="ic">🛠️</span>
+        <span class="txt"><strong>관리자 모드</strong><span>경기 등록 및 결과 관리</span></span>
+      </button>
+    </div>
+  </div>`;
+}
+
+/* ---------- 관리자 로그인 ---------- */
+function renderAdminLoginScreen(){
+  return `
+  <div class="top-bar admin">
+    <div class="brand"><span class="logo-dot"></span><span class="title">관리자 인증</span></div>
+    <button class="icon-btn" data-action="backToStart">뒤로</button>
+  </div>
+  <div class="center-screen">
+    <div style="font-size:40px;margin-bottom:14px;">🔐</div>
+    <h2 class="font-display" style="margin:0 0 6px;font-size:20px;">관리자 코드를 입력하세요</h2>
+    <p class="helper-text" style="margin-bottom:22px;">경기 등록 및 결과 관리 권한이 필요합니다.</p>
+    <div class="field" style="width:100%;max-width:280px;">
+      <input type="password" id="admin-code-input" placeholder="관리자 코드 6자리" inputmode="numeric" autofocus/>
+      <div class="field-error">${escapeHtml(state.adminLoginError)}</div>
+    </div>
+    <button class="btn btn-primary btn-block" style="max-width:280px;" data-action="submitAdminCode">확인</button>
+  </div>`;
+}
+
+/* ---------- 참가자 등록/로그인 ---------- */
+function renderParticipantLoginScreen(){
+  const deptOptions = DEPARTMENTS.map(d=>`<option value="${escapeHtml(d)}" ${state.regDraft.department===d?'selected':''}>${escapeHtml(d)}</option>`).join('');
+  return `
+  <div class="top-bar participant">
+    <div class="brand"><span class="logo-dot"></span><span class="title">참가자 등록</span></div>
+    <button class="icon-btn" data-action="backToStart">뒤로</button>
+  </div>
+  <div class="px" style="padding-top:26px;flex:1;">
+    <h2 class="font-display" style="font-size:21px;margin:0 0 4px;">정보를 입력해주세요</h2>
+    <p class="helper-text" style="margin-bottom:22px;">이미 등록된 학번이면 기존 정보로 바로 접속돼요.</p>
+    <div class="stack">
+      <div class="field">
+        <label>이름</label>
+        <input type="text" id="reg-name" placeholder="예: 김민제" value="${escapeHtml(state.regDraft.name)}"/>
+      </div>
+      <div class="field">
+        <label>학과</label>
+        <select id="reg-department">
+          <option value="">학과를 선택하세요</option>
+          ${deptOptions}
+        </select>
+      </div>
+      <div class="field">
+        <label>학번</label>
+        <input type="text" id="reg-studentid" placeholder="예: 20261234" inputmode="numeric" value="${escapeHtml(state.regDraft.studentId||'')}"/>
+      </div>
+      <div class="field-error">${escapeHtml(state.registerError)}</div>
+      <button class="btn btn-primary btn-block" data-action="submitRegister">시작하기</button>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   참가자 앱
+   ========================================================= */
+function renderParticipantApp(){
+  const p = state.currentParticipant;
+  return `
+  <div class="top-bar participant">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <div>
+        <div class="title">${escapeHtml(p.name)}님</div>
+        <div class="subtitle">${escapeHtml(p.department)}</div>
+      </div>
+    </div>
+    <button class="icon-btn" data-action="participantLogout">로그아웃</button>
+  </div>
+  <main class="view-wrap" id="participant-view-content">
+    ${state.participantTab==='games' ? renderGamesView() : renderParticipantLeaderboardView()}
+  </main>
+  <nav class="bottom-nav">
+    <button class="${state.participantTab==='games'?'active':''}" data-action="setParticipantTab" data-tab="games">
+      <span class="nav-ic">🏁</span>경기
+    </button>
+    <button class="${state.participantTab==='leaderboard'?'active':''}" data-action="setParticipantTab" data-tab="leaderboard">
+      <span class="nav-ic">🏆</span>리더보드
+    </button>
+  </nav>`;
+}
+
+function refreshParticipantView(){
+  const container = document.getElementById('participant-view-content');
+  if(!container) return;
+  container.innerHTML = state.participantTab==='games' ? renderGamesView() : renderParticipantLeaderboardView();
+}
+
+/* ---------- 경기 화면 ---------- */
+function renderGamesView(){
+  const games = syncGetGames().slice().sort((a,b)=> b.createdAt - a.createdAt);
+  if(games.length===0){
+    return `<div class="empty-state"><div class="emoji">🏟️</div><p>아직 등록된 경기가 없어요.<br/>관리자가 경기를 등록하면 여기에 표시됩니다.</p></div>`;
+  }
+  const p = state.currentParticipant;
+  return `<div class="section-title">🏁 경기 예측</div>` + games.map(g=>renderGameCard(g,p)).join('');
+}
+
+function renderGameCard(g, p){
+  const myVote = p.votes && p.votes[g.id] ? p.votes[g.id] : null;
+  const isOpen = g.status === 'OPEN';
+  const isFinished = g.status === 'FINISHED';
+  const typeLabel = g.type === '1v1' ? '1:1 경기' : '단체 경기';
+  const gridClass = g.type === '1v1' ? 'choice-grid two-col' : 'choice-grid';
+
+  const pendingVal = state.pendingSelections[g.id];
+  const currentSelection = pendingVal !== undefined ? pendingVal : (myVote ? myVote.selected : null);
+
+  const chips = g.departments.map(dept=>{
+    let cls = 'choice-chip';
+    let icon = '';
+    if(isFinished){
+      cls += ' locked';
+      if(dept === g.winner) { cls += ' result-win'; icon = ' 🏅'; }
+    } else if(!isOpen){
+      cls += ' locked';
+      if(currentSelection===dept) cls += ' selected';
+    } else {
+      if(currentSelection===dept) cls += ' selected';
+    }
+    const clickable = isOpen ? `data-action="selectChoice" data-game="${g.id}" data-dept="${escapeHtml(dept)}"` : '';
+    return `<button class="${cls}" ${clickable} ${isOpen?'':'disabled'}>${escapeHtml(dept)}${icon}</button>`;
+  }).join('');
+
+  let footNote = '';
+  if(isFinished){
+    if(myVote){
+      const correct = myVote.isCorrect;
+      footNote = `<div class="vote-note ${correct?'result-correct':'result-wrong'}">${correct?'✅ 적중! 내 선택: '+escapeHtml(myVote.selected):'❌ 오답. 내 선택: '+escapeHtml(myVote.selected)}</div>`;
+    } else {
+      footNote = `<div class="vote-note info">투표하지 않은 경기예요</div>`;
+    }
+  } else if(!isOpen){
+    footNote = myVote
+      ? `<div class="vote-note info">🔒 투표 마감됨 · 내 선택: ${escapeHtml(myVote.selected)}</div>`
+      : `<div class="vote-note info">🔒 투표가 마감되었습니다</div>`;
+  } else {
+    footNote = myVote
+      ? `<div class="vote-note ok">✔ ${escapeHtml(myVote.selected)}에 투표했습니다</div>`
+      : `<div class="vote-note info">아직 투표하지 않았어요</div>`;
+  }
+
+  const voteBtnDisabled = !currentSelection || (myVote && myVote.selected === currentSelection);
+  const voteBtnLabel = myVote ? '다시 투표하기' : '투표하기';
+
+  return `
+  <div class="card game-card">
+    <div class="game-card-head">
+      <h3>${escapeHtml(g.name)}</h3>
+      <span class="badge ${statusBadgeClass(g.status)}"><span class="badge-dot"></span>${statusLabel(g.status)}</span>
+    </div>
+    <div class="game-meta">
+      <span class="tag">${typeLabel}</span>
+      <span class="tag">참여 ${g.departments.length}개 학과</span>
+    </div>
+    <div class="${gridClass}">${chips}</div>
+    ${isOpen ? `<button class="btn btn-primary btn-block" style="margin-bottom:10px;" data-action="submitVote" data-game="${g.id}" ${voteBtnDisabled?'disabled':''}>${voteBtnLabel}</button>` : ''}
+    ${footNote}
+  </div>`;
+}
+
+/* ---------- 리더보드 (참가자용) ---------- */
+function renderParticipantLeaderboardView(){
+  return `<div class="section-title">🏆 전체 리더보드</div>` + renderLeaderboardBody();
+}
+
+function renderLeaderboardBody(){
+  const board = computeLeaderboard();
+  if(board.length===0){
+    return `<div class="empty-state"><div class="emoji">📊</div><p>아직 참가자가 없어요.</p></div>`;
+  }
+  const top3 = board.filter(p=>p.rank<=3).slice(0,3);
+  const rest = board.filter(p=>!(p.rank<=3 && top3.includes(p)));
+
+  // 학번(개인정보)은 HTML에 노출하지 않고, 순위 인덱스로만 참조한다.
+  const idxOf = (p)=> board.indexOf(p);
+
+  let podiumHtml = '';
+  if(top3.length>0){
+    // 시상대 순서: 2등-1등-3등
+    const order = [];
+    const p1 = top3.find(p=>p.rank===1), p2 = top3.find(p=>p.rank===2), p3 = top3.find(p=>p.rank===3);
+    if(p2) order.push({p:p2, cls:'podium-2', medal:'🥈'});
+    if(p1) order.push({p:p1, cls:'podium-1', medal:'🥇'});
+    if(p3) order.push({p:p3, cls:'podium-3', medal:'🥉'});
+    podiumHtml = `<div class="podium">` + order.map(o=>`
+      <div class="podium-item ${o.cls}" data-action="showDetail" data-idx="${idxOf(o.p)}">
+        <div class="podium-avatar">${o.medal}</div>
+        <div class="podium-name">${escapeHtml(o.p.name)}</div>
+        <div class="podium-dept">${escapeHtml(o.p.department)}</div>
+        <div class="podium-bar">
+          <div class="rank-num">${o.p.rank}</div>
+          <div class="rank-score">${o.p.correct}경기 적중</div>
+        </div>
+      </div>`).join('') + `</div>`;
+  }
+
+  const restHtml = rest.map(p=>`
+    <div class="rank-row" data-action="showDetail" data-idx="${idxOf(p)}">
+      <div class="rank-num-badge">${p.rank}</div>
+      <div class="rank-info">
+        <div class="rname">${escapeHtml(p.name)}</div>
+        <div class="rdept">${escapeHtml(p.department)}</div>
+      </div>
+      <div class="rank-score-pill">${p.correct}경기 적중</div>
+    </div>`).join('');
+
+  return podiumHtml + restHtml;
+}
+
+function renderParticipantDetailModal(studentId){
+  const p = findParticipantById(studentId);
+  if(!p) return '';
+  const correct = computeCorrectCount(p);
+  const games = syncGetGames();
+  const voteEntries = Object.keys(p.votes||{}).map(gid=>({gid, vote:p.votes[gid], game: games.find(g=>g.id===gid)})).filter(x=>x.game);
+  voteEntries.sort((a,b)=> b.game.createdAt - a.game.createdAt);
+
+  const rows = voteEntries.length ? voteEntries.map(({vote, game})=>{
+    let iconHtml, subText;
+    if(game.status==='FINISHED'){
+      iconHtml = vote.isCorrect
+        ? `<div class="result-icon correct">✓</div>`
+        : `<div class="result-icon wrong">✕</div>`;
+      subText = `내 선택: ${escapeHtml(vote.selected)} · 실제 우승: ${escapeHtml(game.winner)}`;
+    } else {
+      iconHtml = `<div class="result-icon pending">…</div>`;
+      subText = `내 선택: ${escapeHtml(vote.selected)} · ${statusLabel(game.status)}`;
+    }
+    return `<div class="detail-game-row">
+      <div><div class="dgname">${escapeHtml(game.name)}</div><div class="dgsub">${subText}</div></div>
+      ${iconHtml}
+    </div>`;
+  }).join('') : `<p class="helper-text">아직 투표한 경기가 없어요.</p>`;
+
+  return `
+  <div class="modal-overlay" data-action="closeDetail">
+    <div class="modal-box" style="position:relative;">
+      <button class="modal-close-x" data-action="closeDetail">✕</button>
+      <h3>${escapeHtml(p.name)}</h3>
+      <div class="modal-sub">${escapeHtml(p.department)}</div>
+      <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;background:var(--primary-soft);border:none;">
+        <span style="font-weight:700;color:var(--primary-dark);font-size:14px;">총 적중 경기 수</span>
+        <span style="font-family:'Space Grotesk';font-weight:700;font-size:22px;color:var(--primary-dark);">${correct}경기</span>
+      </div>
+      <div class="card" style="padding:6px 16px;">${rows}</div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   관리자 앱
+   ========================================================= */
+function renderAdminApp(){
+  return `
+  <div class="top-bar admin">
+    <div class="brand"><span class="logo-dot"></span><span class="title">관리자 모드</span></div>
+    <button class="icon-btn" data-action="adminLogout">로그아웃</button>
+  </div>
+  <main class="view-wrap admin-app" id="admin-view-content">
+    ${renderAdminTabContent()}
+  </main>
+  <nav class="bottom-nav admin-app">
+    <button class="${state.adminTab==='create'?'active':''}" data-action="setAdminTab" data-tab="create"><span class="nav-ic">➕</span>경기 만들기</button>
+    <button class="${state.adminTab==='manage'?'active':''}" data-action="setAdminTab" data-tab="manage"><span class="nav-ic">⚙️</span>경기 관리</button>
+    <button class="${state.adminTab==='leaderboard'?'active':''}" data-action="setAdminTab" data-tab="leaderboard"><span class="nav-ic">🏆</span>리더보드</button>
+    <button class="${state.adminTab==='ids'?'active':''}" data-action="setAdminTab" data-tab="ids"><span class="nav-ic">🪪</span>학번 관리</button>
+  </nav>`;
+}
+
+function renderAdminTabContent(){
+  if(state.adminTab==='create') return renderCreateGameView();
+  if(state.adminTab==='manage') return renderManageGamesView();
+  if(state.adminTab==='leaderboard') return renderAdminLeaderboardView();
+  if(state.adminTab==='ids') return renderAllowedIdsView();
+  return '';
+}
+
+function refreshAdminView(){
+  const container = document.getElementById('admin-view-content');
+  if(!container) return;
+  container.innerHTML = renderAdminTabContent();
+}
+
+/* ---------- 경기 만들기 ---------- */
+function renderCreateGameView(){
+  const d = state.newGameDraft;
+  const is1v1 = d.type === '1v1';
+
+  let deptSection;
+  if(is1v1){
+    deptSection = `
+      <div class="field">
+        <label>학과 A</label>
+        <select id="create-dept-a">
+          <option value="">선택하세요</option>
+          ${DEPARTMENTS.map(dep=>`<option value="${escapeHtml(dep)}" ${d.departments[0]===dep?'selected':''}>${escapeHtml(dep)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>학과 B</label>
+        <select id="create-dept-b">
+          <option value="">선택하세요</option>
+          ${DEPARTMENTS.map(dep=>`<option value="${escapeHtml(dep)}" ${d.departments[1]===dep?'selected':''}>${escapeHtml(dep)}</option>`).join('')}
+        </select>
+      </div>`;
+  } else {
+    deptSection = `
+      <div class="field">
+        <label>참여 학과 (2개 이상 선택)</label>
+        <div class="dept-check-list">
+          ${DEPARTMENTS.map(dep=>`
+            <label class="dept-check ${d.departments.includes(dep)?'checked':''}" data-action="toggleGroupDept" data-dept="${escapeHtml(dep)}">
+              <input type="checkbox" ${d.departments.includes(dep)?'checked':''}/>${escapeHtml(dep)}
+            </label>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  return `
+  <div class="section-title">➕ 새 경기 만들기</div>
+  <div class="card stack">
+    <div class="field">
+      <label>경기 이름</label>
+      <input type="text" id="create-game-name" placeholder="예: 축구 결승전" value="${escapeHtml(d.name)}"/>
+    </div>
+    <div class="field">
+      <label>경기 종류</label>
+      <div class="type-toggle">
+        <button class="${is1v1?'active':''}" data-action="setGameType" data-type="1v1">1:1 경기</button>
+        <button class="${!is1v1?'active':''}" data-action="setGameType" data-type="group">단체 경기</button>
+      </div>
+    </div>
+    ${deptSection}
+    <button class="btn btn-admin btn-block" data-action="submitCreateGame">경기 등록하기</button>
+  </div>`;
+}
+
+/* ---------- 경기 관리 ---------- */
+function renderManageGamesView(){
+  const games = syncGetGames().slice().sort((a,b)=> b.createdAt - a.createdAt);
+  if(games.length===0){
+    return `<div class="section-title">⚙️ 경기 관리</div><div class="empty-state"><div class="emoji">🗂️</div><p>등록된 경기가 없습니다.<br/>먼저 경기를 만들어보세요.</p></div>`;
+  }
+  return `<div class="section-title">⚙️ 경기 관리</div>` + games.map(g=>renderAdminGameRow(g)).join('');
+}
+
+function renderAdminGameRow(g){
+  const typeLabel = g.type==='1v1' ? '1:1 경기' : '단체 경기';
+  const deptChips = g.departments.map(dep=>`<span class="mini-tag">${escapeHtml(dep)}${g.status==='FINISHED'&&dep===g.winner?' 🏅':''}</span>`).join('');
+
+  let actions = '';
+  if(g.status==='OPEN'){
+    actions = `<button class="btn btn-outline btn-sm" data-action="closeVoting" data-game="${g.id}">투표 마감</button>
+               <button class="btn btn-danger btn-sm" data-action="deleteGame" data-game="${g.id}">삭제</button>`;
+  } else if(g.status==='CLOSED'){
+    actions = `
+      <div style="display:flex;gap:8px;width:100%;margin-bottom:8px;">
+        <select class="winner-select" id="winner-select-${g.id}">
+          <option value="">실제 우승 학과 선택</option>
+          ${g.departments.map(dep=>`<option value="${escapeHtml(dep)}">${escapeHtml(dep)}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn btn-outline btn-sm" data-action="reopenVoting" data-game="${g.id}">마감 취소</button>
+      <button class="btn btn-success btn-sm" data-action="finishGame" data-game="${g.id}">경기 종료</button>
+      <button class="btn btn-danger btn-sm" data-action="deleteGame" data-game="${g.id}">삭제</button>`;
+  } else {
+    actions = `<span class="helper-text" style="align-self:center;">우승 학과: <strong style="color:var(--success);">${escapeHtml(g.winner)}</strong></span>
+               <button class="btn btn-danger btn-sm" data-action="deleteGame" data-game="${g.id}">삭제</button>`;
+  }
+
+  return `
+  <div class="admin-game-row">
+    <div class="agr-head">
+      <h4>${escapeHtml(g.name)}</h4>
+      <span class="badge ${statusBadgeClass(g.status)}"><span class="badge-dot"></span>${statusLabel(g.status)}</span>
+    </div>
+    <div class="game-meta"><span class="tag">${typeLabel}</span></div>
+    <div class="chip-row">${deptChips}</div>
+    <div class="agr-actions">${actions}</div>
+  </div>`;
+}
+
+/* ---------- 관리자 리더보드 ---------- */
+function renderAdminLeaderboardView(){
+  const games = syncGetGames();
+  const participants = syncGetParticipants();
+  const finishedCount = games.filter(g=>g.status==='FINISHED').length;
+  return `
+  <div class="section-title">🏆 전체 리더보드</div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="num">${participants.length}</div><div class="lbl">전체 참가자</div></div>
+    <div class="stat-card"><div class="num">${games.length}</div><div class="lbl">등록 경기 수</div></div>
+    <div class="stat-card"><div class="num">${finishedCount}</div><div class="lbl">종료된 경기</div></div>
+  </div>
+  ${renderLeaderboardBody()}`;
+}
+
+/* ---------- 학번 관리 ---------- */
+function renderAllowedIdsView(){
+  const ids = syncGetAllowedIds();
+  return `
+  <div class="section-title">🪪 참가 가능 학번 관리</div>
+  <div class="card" style="margin-bottom:16px;">
+    <p class="helper-text" style="margin-bottom:12px;">${ids.length===0
+      ? '⚠️ 등록된 학번이 없어요. 이 목록이 비어있는 동안에는 <strong>모든 학번</strong>으로 등록이 가능합니다. 참가 가능한 학번만 등록하려면 아래에 추가하세요.'
+      : '등록된 학번만 참가자로 등록할 수 있습니다. 쉼표(,) 또는 줄바꿈으로 여러 개를 한 번에 추가할 수 있어요.'}</p>
+    <div class="field">
+      <textarea id="allowed-id-input" rows="3" placeholder="예: 20261234, 20265678"></textarea>
+    </div>
+    <button class="btn btn-admin btn-block" style="margin-top:10px;" data-action="addAllowedIds">추가하기</button>
+  </div>
+  <div class="card">
+    <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">등록된 학번 (${ids.length}개)</div>
+    <div class="id-tag-wrap">
+      ${ids.length ? ids.map(id=>`<span class="id-tag">${escapeHtml(id)}<button data-action="removeAllowedId" data-id="${escapeHtml(id)}">✕</button></span>`).join('') : '<span class="helper-text">등록된 학번이 없습니다.</span>'}
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   내비게이션 액션
+   ========================================================= */
+function goStart(){
+  state.screen = 'start';
+  renderApp();
+}
+function goParticipant(){
+  const pid = localStorage.getItem(LS_KEYS.CURRENT_PID);
+  if(pid){
+    const p = findParticipantById(pid);
+    if(p){
+      state.currentParticipant = p;
+      state.pendingSelections = {};
+      state.screen = 'participantApp';
+      state.participantTab = 'games';
+      renderApp();
+      return;
+    }
+  }
+  state.regDraft = { name:'', department:'', studentId:'' };
+  state.registerError = '';
+  state.screen = 'participantLogin';
+  renderApp();
+}
+function goAdminLogin(){
+  if(sessionStorage.getItem(LS_KEYS.ADMIN_SESSION)==='1'){
+    state.screen = 'adminApp';
+    state.adminTab = 'create';
+    renderApp();
+    return;
+  }
+  state.adminLoginError = '';
+  state.screen = 'adminLogin';
+  renderApp();
+}
+
+/* =========================================================
+   이벤트 위임
+   ========================================================= */
+document.addEventListener('click', function(e){
+  const target = e.target.closest('[data-action]');
+  if(!target) return;
+  const action = target.getAttribute('data-action');
+
+  switch(action){
+    case 'backToStart': goStart(); break;
+    case 'goParticipant': goParticipant(); break;
+    case 'goAdminLogin': goAdminLogin(); break;
+
+    case 'submitAdminCode': handleSubmitAdminCode(); break;
+    case 'submitRegister': handleSubmitRegister(); break;
+
+    case 'setParticipantTab':
+      state.participantTab = target.getAttribute('data-tab');
+      state.pendingSelections = {};
+      renderApp();
+      break;
+    case 'participantLogout':
+      localStorage.removeItem(LS_KEYS.CURRENT_PID);
+      state.currentParticipant = null;
+      goStart();
+      break;
+
+    case 'selectChoice': {
+      const gid = target.getAttribute('data-game');
+      const dept = target.getAttribute('data-dept');
+      state.pendingSelections[gid] = dept;
+      refreshParticipantView();
+      break;
+    }
+    case 'submitVote': handleSubmitVote(target.getAttribute('data-game')); break;
+
+    case 'showDetail': {
+      const idx = parseInt(target.getAttribute('data-idx'), 10);
+      const board = computeLeaderboard();
+      const chosen = board[idx];
+      if(chosen){
+        state.detailParticipantId = chosen.studentId; // 내부 상태로만 보관, 화면에는 노출되지 않음
+        renderModals();
+      }
+      break;
+    }
+    case 'closeDetail':
+      if(e.target !== target) break; // 모달 내부 클릭은 무시, 배경(overlay) 클릭시에만 닫기
+      state.detailParticipantId = null;
+      renderModals();
+      break;
+
+    case 'adminLogout':
+      sessionStorage.removeItem(LS_KEYS.ADMIN_SESSION);
+      goStart();
+      break;
+    case 'setAdminTab':
+      state.adminTab = target.getAttribute('data-tab');
+      renderApp();
+      break;
+
+    case 'setGameType':
+      state.newGameDraft.type = target.getAttribute('data-type');
+      state.newGameDraft.departments = [];
+      refreshAdminView();
+      break;
+    case 'toggleGroupDept': {
+      const dep = target.getAttribute('data-dept');
+      const arr = state.newGameDraft.departments;
+      const idx = arr.indexOf(dep);
+      if(idx>=0) arr.splice(idx,1); else arr.push(dep);
+      refreshAdminView();
+      break;
+    }
+    case 'submitCreateGame': handleSubmitCreateGame(); break;
+
+    case 'closeVoting': handleCloseVoting(target.getAttribute('data-game')); break;
+    case 'reopenVoting': handleReopenVoting(target.getAttribute('data-game')); break;
+    case 'finishGame': handleFinishGameClick(target.getAttribute('data-game')); break;
+    case 'deleteGame': handleDeleteGameClick(target.getAttribute('data-game')); break;
+
+    case 'addAllowedIds': handleAddAllowedIds(); break;
+    case 'removeAllowedId': handleRemoveAllowedId(target.getAttribute('data-id')); break;
+
+    case 'closeConfirm':
+      if(e.target !== target) break; // 모달 내부 클릭은 무시, 배경(overlay) 클릭시에만 닫기
+      closeConfirm();
+      break;
+    case 'confirmYes': {
+      const cb = state.confirmModal && state.confirmModal.onConfirm;
+      closeConfirm();
+      if(cb) cb();
+      break;
+    }
+  }
+});
+
+/* Enter 키 지원 */
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  const id = e.target.id;
+  if(id==='admin-code-input') handleSubmitAdminCode();
+  if(id==='reg-name' || id==='reg-studentid') handleSubmitRegister();
+});
+
+/* =========================================================
+   핸들러 구현
+   ========================================================= */
+function handleSubmitAdminCode(){
+  const val = document.getElementById('admin-code-input').value.trim();
+  if(val === ADMIN_CODE){
+    sessionStorage.setItem(LS_KEYS.ADMIN_SESSION,'1');
+    state.screen = 'adminApp';
+    state.adminTab = 'create';
+    renderApp();
+    showToast('관리자로 인증되었습니다.', 'ok');
+  } else {
+    state.adminLoginError = '관리자 코드가 올바르지 않습니다.';
+    renderApp();
+  }
+}
+
+function handleSubmitRegister(){
+  const name = document.getElementById('reg-name').value.trim();
+  const department = document.getElementById('reg-department').value;
+  const studentId = document.getElementById('reg-studentid').value.trim();
+  state.regDraft = { name, department, studentId };
+
+  if(!name){ state.registerError = '이름을 입력해주세요.'; renderApp(); return; }
+  if(!department){ state.registerError = '학과를 선택해주세요.'; renderApp(); return; }
+  if(!studentId){ state.registerError = '학번을 입력해주세요.'; renderApp(); return; }
+  if(!/^[0-9]+$/.test(studentId)){ state.registerError = '학번은 숫자만 입력해주세요.'; renderApp(); return; }
+
+  const allowedIds = syncGetAllowedIds();
+  if(allowedIds.length > 0 && !allowedIds.includes(studentId)){
+    state.registerError = '참가 가능한 학번 목록에 없습니다. 관리자에게 문의해주세요.';
+    renderApp();
+    return;
+  }
+
+  const existing = findParticipantById(studentId);
+  if(existing){
+    state.currentParticipant = existing;
+    localStorage.setItem(LS_KEYS.CURRENT_PID, studentId);
+    state.pendingSelections = {};
+    state.screen = 'participantApp';
+    state.participantTab = 'games';
+    renderApp();
+    showToast(existing.name + '님, 다시 오셨네요!', 'ok');
+    return;
+  }
+
+  const newP = { studentId, name, department, votes:{}, correctCount:0 };
+  upsertParticipant(newP);
+  localStorage.setItem(LS_KEYS.CURRENT_PID, studentId);
+  state.currentParticipant = newP;
+  state.pendingSelections = {};
+  state.screen = 'participantApp';
+  state.participantTab = 'games';
+  renderApp();
+  showToast('등록이 완료되었습니다. 환영해요!', 'ok');
+}
+
+function handleSubmitVote(gameId){
+  const game = getGameById(gameId);
+  if(!game || game.status !== 'OPEN') { showToast('투표가 마감된 경기입니다.', 'err'); return; }
+  const dept = state.pendingSelections[gameId] || (state.currentParticipant.votes && state.currentParticipant.votes[gameId] && state.currentParticipant.votes[gameId].selected);
+  if(!dept){ showToast('학과를 먼저 선택해주세요.', 'err'); return; }
+
+  castVote(state.currentParticipant, game, dept);
+  state.currentParticipant = findParticipantById(state.currentParticipant.studentId);
+  delete state.pendingSelections[gameId];
+  refreshParticipantView();
+  showToast('투표가 완료되었습니다.', 'ok');
+}
+
+function handleSubmitCreateGame(){
+  const name = document.getElementById('create-game-name').value.trim();
+  const d = state.newGameDraft;
+  let departments = [];
+
+  if(d.type === '1v1'){
+    const a = document.getElementById('create-dept-a').value;
+    const b = document.getElementById('create-dept-b').value;
+    if(!name){ showToast('경기 이름을 입력해주세요.', 'err'); return; }
+    if(!a || !b){ showToast('두 학과를 모두 선택해주세요.', 'err'); return; }
+    if(a === b){ showToast('서로 다른 학과를 선택해주세요.', 'err'); return; }
+    departments = [a,b];
+  } else {
+    if(!name){ showToast('경기 이름을 입력해주세요.', 'err'); return; }
+    if(d.departments.length < 2){ showToast('참여 학과를 2개 이상 선택해주세요.', 'err'); return; }
+    departments = d.departments.slice();
+  }
+
+  const newGame = {
+    id: uid('g'),
+    name,
+    type: d.type,
+    departments,
+    status: 'OPEN',
+    winner: null,
+    createdAt: Date.now()
+  };
+  const games = syncGetGames();
+  games.push(newGame);
+  syncSetGames(games);
+
+  state.newGameDraft = { name:'', type:'1v1', departments: [] };
+  state.adminTab = 'manage';
+  renderApp();
+  showToast('경기가 등록되었습니다.', 'ok');
+}
+
+function handleCloseVoting(gameId){
+  const g = getGameById(gameId);
+  if(!g) return;
+  g.status = 'CLOSED';
+  saveGame(g);
+  refreshAdminView();
+  showToast('투표가 마감되었습니다.', 'ok');
+}
+function handleReopenVoting(gameId){
+  const g = getGameById(gameId);
+  if(!g) return;
+  g.status = 'OPEN';
+  saveGame(g);
+  refreshAdminView();
+  showToast('투표 마감이 취소되었습니다.', 'ok');
+}
+function handleFinishGameClick(gameId){
+  const g = getGameById(gameId);
+  if(!g) return;
+  const select = document.getElementById('winner-select-'+gameId);
+  const winner = select ? select.value : '';
+  if(!winner){ showToast('실제 우승 학과를 선택해주세요.', 'err'); return; }
+  openConfirm({
+    title: '경기 결과 확정',
+    sub: `실제 우승 학과가 "${winner}"가(이) 맞습니까? 확정 후에는 참가자 적중 여부가 자동으로 계산됩니다.`,
+    confirmLabel: '확정합니다',
+    danger: false,
+    onConfirm: ()=>{
+      finishGameAndRecalc(gameId, winner);
+      refreshAdminView();
+      showToast('경기 결과가 반영되었습니다.', 'ok');
+    }
+  });
+}
+function handleDeleteGameClick(gameId){
+  const g = getGameById(gameId);
+  if(!g) return;
+  openConfirm({
+    title: '경기 삭제',
+    sub: `"${g.name}" 경기를 삭제하시겠습니까? 관련된 모든 투표 기록도 함께 삭제되며 되돌릴 수 없습니다.`,
+    confirmLabel: '삭제합니다',
+    danger: true,
+    onConfirm: ()=>{
+      deleteGameCascade(gameId);
+      refreshAdminView();
+      showToast('경기가 삭제되었습니다.', 'ok');
+    }
+  });
+}
+
+function handleAddAllowedIds(){
+  const raw = document.getElementById('allowed-id-input').value;
+  const parts = raw.split(/[,\n\s]+/).map(s=>s.trim()).filter(Boolean);
+  if(parts.length===0){ showToast('추가할 학번을 입력해주세요.', 'err'); return; }
+  const ids = syncGetAllowedIds();
+  let added = 0;
+  parts.forEach(id=>{
+    if(/^[0-9]+$/.test(id) && !ids.includes(id)){ ids.push(id); added++; }
+  });
+  syncSetAllowedIds(ids);
+  refreshAdminView();
+  showToast(added > 0 ? `${added}개의 학번이 추가되었습니다.` : '유효한 새 학번이 없습니다.', added>0?'ok':'err');
+}
+function handleRemoveAllowedId(id){
+  const ids = syncGetAllowedIds().filter(x=>x!==id);
+  syncSetAllowedIds(ids);
+  refreshAdminView();
+}
+
+/* =========================================================
+   초기화
+   ========================================================= */
+function init(){
+  renderApp();
+}
+init();
+
+/* 개발자 콘솔 디버깅용 참조 (프로덕션 동작에는 영향 없음) */
+window.state = state;
+window.renderApp = renderApp;
+</script>
+</body>
+</html>
